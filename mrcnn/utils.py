@@ -366,23 +366,38 @@ class Dataset(object):
         return image
 
     def load_mask(self, image_id):
-        """Load instance masks for the given image.
-
-        Different datasets use different ways to store masks. Override this
-        method to load instance masks and return them in the form of am
-        array of binary masks of shape [height, width, instances].
-
-        Returns:
-            masks: A bool array of shape [height, width, instance count] with
-                a binary mask per instance.
-            class_ids: a 1D array of class IDs of the instance masks.
+        """Generate instance masks for an image.
+       Returns:
+        masks: A bool array of shape [height, width, instance count] with
+            one mask per instance.
+        class_ids: a 1D array of class IDs of the instance masks.
         """
-        # Override this function to load a mask from your dataset.
-        # Otherwise, it returns an empty mask.
-        logging.warning("You are using the default load_mask(), maybe you need to define your own one.")
-        mask = np.empty([0, 0, 0])
-        class_ids = np.empty([0], np.int32)
-        return mask, class_ids
+        # If not a Horse/Man dataset image, delegate to parent class.
+        image_info = self.image_info[image_id]
+        
+        #if image_info["source"] != "object":
+        #  print("1")
+        #  return super(self.__class__, self).load_mask(image_id)
+
+        # Convert polygons to a bitmap mask of shape
+        # [height, width, instance_count]
+        info = self.image_info[image_id]
+        #if info["source"] != "object":
+        #    return super(self.__class__, self).load_mask(image_id)
+        num_ids = info['num_ids']
+        mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
+                        dtype=np.uint8)
+        for i, p in enumerate(info["polygons"]):
+            # Get indexes of pixels inside the polygon and set them to 1
+        	rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
+
+        	mask[rr, cc, i] = 1
+
+        # Return mask, and array of class IDs of each instance. Since we have
+        # one class ID only, we return an array of 1s
+        # Map class names to class IDs.
+        num_ids = np.array(num_ids, dtype=np.int32)
+        return mask, num_ids #np.ones([mask.shape[-1]], dtype=np.int32)
 
 
 def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square"):
